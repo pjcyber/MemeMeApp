@@ -21,7 +21,11 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>MemeMe App needs permission to access components</string>
+	<string>Meme App needs permission to access components</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Meme App nees permission to acces the image gallery</string>
+	<key>PrivPrivacy - Photo Library Usage Description</key>
+	<string></string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
