@@ -8,7 +8,7 @@
 
 import UIKit
 
-class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+class MemeScreenViewController: UIViewController, UITextFieldDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     
     // MARK: - Properties
     @IBOutlet weak var topNavBar: UIToolbar!
@@ -17,20 +17,13 @@ class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerContro
     @IBOutlet weak var bottomTextField: UITextField!
     @IBOutlet weak var cameraButton: UIBarButtonItem!
     @IBOutlet weak var albumButton: UIBarButtonItem!
+    @IBOutlet weak var shareButton: UIBarButtonItem!
     @IBOutlet weak var imageView: UIImageView!
     
     // MARK: - Global Variables
     var position: CGFloat = 0
     var pictureLandscape: Bool = false
     var screenOrientationPortrait: Bool = false
-    
-    // MARK: - struct
-    struct Meme {
-        let topText: String
-        let bottomText: String
-        let originalImage: UIImage
-        let memedImage: UIImage
-    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -39,6 +32,7 @@ class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerContro
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        cameraButton.isEnabled = UIImagePickerController.isSourceTypeAvailable(.camera)
         subscribeToKeyboardNotifications()
     }
     
@@ -57,18 +51,12 @@ class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerContro
     
     // MARK: - To Open UIImagePickerController to get image from the device gallery
     @IBAction func onClickPickAnImageFromAlbum(_ sender: Any) {
-        let pickerController = UIImagePickerController()
-        pickerController.delegate = self
-        pickerController.sourceType  =   .photoLibrary
-        present(pickerController, animated: true, completion: nil)
+        pickImage(from: .photoLibrary)
     }
     
     // MARK: - To open Camera
     @IBAction func onClickPickAnImageFromCamera(_ sender: Any) {
-        let imagePicker = UIImagePickerController()
-        imagePicker.delegate = self
-        imagePicker.sourceType = .camera
-        present(imagePicker, animated: true, completion: nil)
+        pickImage(from: .camera)
     }
     
     // MARK: - To open UIActivityViewController to share Meme Image
@@ -78,9 +66,9 @@ class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerContro
         let activityController = UIActivityViewController(activityItems: items, applicationActivities: nil)
         present(activityController, animated: true)
         
-        //Completion handler
-        activityController.completionWithItemsHandler = { (activityType: UIActivity.ActivityType?,
-            completed: Bool, arrayReturnedItems: [Any]?, error: Error?) in
+        // Completion handler
+        activityController.completionWithItemsHandler = {
+            _, completed, _, error in
             if completed {
                 print("share completed")
                 return
@@ -98,8 +86,15 @@ class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerContro
         imageView.image = nil
         topTextField.text = "TOP"
         bottomTextField.text = "BOTTOM"
-        topTextField.isEnabled = false
-        bottomTextField.isEnabled = false
+        enableTextFields(false)
+    }
+    
+    // MARK: - open UIImagePickerController
+    func pickImage(from: UIImagePickerController.SourceType) {
+        let imagePicker = UIImagePickerController()
+        imagePicker.delegate = self
+        imagePicker.sourceType = from
+        present(imagePicker, animated: true, completion: nil)
     }
     
     func imagePickerController(_ picker: UIImagePickerController,
@@ -108,8 +103,7 @@ class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerContro
             // adding image to imageView
             imageView.image = image
             // enabling topTextField and bottomTextField
-            topTextField.isEnabled = true
-            bottomTextField.isEnabled = true
+            enableTextFields(true)
             // adjust the contentMode to .scaleAspectFill/.scaleAspectFit depending of picture orientation and device orientation
             pictureLandscape = image.size.width > image.size.height
             adjustPictureScaleAspect(pictureLandscape: pictureLandscape)
@@ -156,8 +150,7 @@ class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerContro
             view.frame.origin.y -= getKeyboardHeight(notification)
             
             // disable toolbar buttons to avoid move the view twice
-            cameraButton.isEnabled = false
-            albumButton.isEnabled = false
+            enablePickImageButtons(false)
         }
     }
     
@@ -173,8 +166,7 @@ class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerContro
         view.endEditing(true)
         view.frame.origin.y = position
         // enable toolbar buttons after edit TextField
-        cameraButton.isEnabled = true
-        albumButton.isEnabled = true
+        enablePickImageButtons(true)
         return false
     }
     
@@ -194,29 +186,43 @@ class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerContro
     // MARK: - func to generate Meme Image
     func generateMemedImage() -> UIImage {
         // Hide toolbar and navbar
-        topNavBar.isHidden = true
-        bottomToolBar.isHidden = true
+        hideToolBar(true)
         
         // Render view to an image
-        UIGraphicsBeginImageContext(self.view.frame.size)
-        view.drawHierarchy(in: self.view.frame, afterScreenUpdates: true)
+        UIGraphicsBeginImageContext(view.frame.size)
+        view.drawHierarchy(in: view.frame, afterScreenUpdates: true)
         let memedImage: UIImage = UIGraphicsGetImageFromCurrentImageContext()!
         UIGraphicsEndImageContext()
         
-        //Show toolbar and navbar
-        topNavBar.isHidden = false
-        bottomToolBar.isHidden = false
+        // Show toolbar and navbar
+        hideToolBar(false)
         
         return memedImage
     }
     
     func initializeUI() {
-        cameraButton.isEnabled = UIImagePickerController.isSourceTypeAvailable(.camera)
-        
         let size = UIScreen.main.bounds.size
         screenOrientationPortrait = size.width < size.height
         position = view.frame.origin.y
         
+        setTextFieldAttributes()
+        enableTextFields(false)
+        topTextField.delegate = self
+        bottomTextField.delegate = self
+    }
+    
+    func enableTextFields(_ enable: Bool) {
+        topTextField.isEnabled = enable
+        bottomTextField.isEnabled = enable
+        shareButton.isEnabled = enable
+    }
+    
+    func hideToolBar(_ show: Bool) {
+        topNavBar.isHidden = show
+        bottomToolBar.isHidden = show
+    }
+    
+    func setTextFieldAttributes() {
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = .center
         let memeTextAttributes: [NSAttributedString.Key: Any] = [
@@ -229,9 +235,10 @@ class ViewController: UIViewController, UITextFieldDelegate, UIImagePickerContro
         
         topTextField.defaultTextAttributes = memeTextAttributes
         bottomTextField.defaultTextAttributes = memeTextAttributes
-        topTextField.isEnabled = false
-        bottomTextField.isEnabled = false
-        topTextField.delegate = self
-        bottomTextField.delegate = self
+    }
+    
+    func enablePickImageButtons(_ enable: Bool) {
+        cameraButton.isEnabled = enable
+        albumButton.isEnabled = enable
     }
 }
